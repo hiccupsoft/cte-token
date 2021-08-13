@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
 
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.4;
 
-interface IBEP20 {
+interface IERC20 {
 
     function totalSupply() external view returns (uint256);
 
@@ -336,7 +336,7 @@ library Address {
      *
      * Requirements:
      *
-     * - the calling contract must have an BNB balance of at least `value`.
+     * - the calling contract must have an ETH balance of at least `value`.
      * - the called Solidity function must be `payable`.
      *
      * _Available since v3.1._
@@ -466,7 +466,7 @@ contract Ownable is Context {
     }
 }
 
-interface IPancakeFactory {
+interface IUniswapFactory {
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
 
     function feeTo() external view returns (address);
@@ -482,7 +482,7 @@ interface IPancakeFactory {
     function setFeeToSetter(address) external;
 }
 
-interface IPancakePair {
+interface IUniswapPair {
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
@@ -533,7 +533,7 @@ interface IPancakePair {
     function initialize(address, address) external;
 }
 
-interface IPancakeRouter01 {
+interface IUniswapRouter01 {
     function factory() external pure returns (address);
     function WETH() external pure returns (address);
 
@@ -627,7 +627,7 @@ interface IPancakeRouter01 {
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
 }
 
-interface IPancakeRouter02 is IPancakeRouter01 {
+interface IUniswapRouter02 is IUniswapRouter01 {
     function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
         uint liquidity,
@@ -670,7 +670,7 @@ interface IPancakeRouter02 is IPancakeRouter01 {
 
 // File: contracts/protocols/bep/ReentrancyGuard.sol
 
-pragma solidity >=0.8.7;
+//pragma solidity >=0.8.7;
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
@@ -736,12 +736,12 @@ abstract contract ReentrancyGuard {
     }
 }
 
-pragma solidity >=0.8.7;
+//pragma solidity >=0.8.7;
 pragma experimental ABIEncoderV2;
 
 
 
-contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
+contract Test is Context, IERC20, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using Address for address;
     
@@ -766,8 +766,8 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     string private _symbol = "Test";
     uint8 private _decimals = 9;
 
-    IPancakeRouter02 public immutable pancakeRouter;
-    address public immutable pancakePair;
+    IUniswapRouter02 public immutable UniswapRouter;
+    address public immutable UniswapPair;
 
     bool inSwapAndLiquify = false;
 
@@ -778,7 +778,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         uint256 tokensIntoLiqudity
     );
 
-    event ClaimBNBSuccessfully(
+    event ClaimETHSuccessfully(
         address recipient,
         uint256 ethReceived
     );
@@ -796,13 +796,13 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     ) {
         _rOwned[_msgSender()] = _rTotal;
 
-        IPancakeRouter02 _pancakeRouter = IPancakeRouter02(routerAddress);
-        // Create a pancake pair for this new token
-        pancakePair = IPancakeFactory(_pancakeRouter.factory())
-        .createPair(address(this), _pancakeRouter.WETH());
+        IUniswapRouter02 _UniswapRouter = IUniswapRouter02(routerAddress);
+        // Create a Uniswap pair for this new token
+        UniswapPair = IUniswapFactory(_UniswapRouter.factory())
+        .createPair(address(this), _UniswapRouter.WETH());
 
         // set the rest of the contract variables
-        pancakeRouter = _pancakeRouter;
+        UniswapRouter = _UniswapRouter;
         
         deploymentTime = block.timestamp;
 
@@ -858,7 +858,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
 
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "BEP20: transfer amount exceeds allowance"));
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
     }
 
@@ -868,7 +868,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "BEP20: decreased allowance below zero"));
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
     }
 
@@ -907,7 +907,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     }
 
     function excludeFromReward(address account) public onlyOwner() {
-        // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Pancake router.');
+        // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
         require(!_isExcluded[account], "Account is already excluded");
         if (_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
@@ -961,7 +961,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-    //to receive BNB from pancakeRouter when swapping
+    //to receive ETH from UniswapRouter when swapping
     receive() external payable {}
 
     function _reflectFee(uint256 rFee, uint256 tFee) private {
@@ -1051,8 +1051,8 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     }
 
     function _approve(address owner, address spender, uint256 amount) private {
-        require(owner != address(0), "BEP20: approve from the zero address");
-        require(spender != address(0), "BEP20: approve to the zero address");
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
@@ -1063,8 +1063,8 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         address to,
         uint256 amount
     ) private {
-        require(from != address(0), "BEP20: transfer from the zero address");
-        require(to != address(0), "BEP20: transfer to the zero address");
+        require(from != address(0), "ERC20: transfer from the zero address");
+        require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
 
       if(from != owner())
@@ -1147,7 +1147,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     uint256 public _taxFee = 5;
     uint256 private _previousTaxFee = _taxFee;
     
-    uint256 public _liquidityFee = 10; // 5% will be added pool, 5% will be converted to BNB
+    uint256 public _liquidityFee = 10; // 5% will be added pool, 5% will be converted to ETH
     uint256 private _previousLiquidityFee = _liquidityFee;
 
     uint256 minTokenNumberToSell = _tTotal.mul(1).div(10000).div(10); // 0.001% max tx amount will trigger swap and add liquidity
@@ -1160,14 +1160,14 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         _isExcludedFromMaxTx[_address] = value;
     }       
 
-    function calculateBNBReward(address ofAddress) public view returns (uint256) {
+    function calculateETHReward(address ofAddress) public view returns (uint256) {
         uint256 total_Supply = uint256(_tTotal)
         .sub(balanceOf(address(0)))
         .sub(balanceOf(0x000000000000000000000000000000000000dEaD)) // exclude burned wallet
-        .sub(balanceOf(address(pancakePair)));
+        .sub(balanceOf(address(UniswapPair)));
         // exclude liquidity wallet
 
-        return calculateBNBReward(
+        return calculateETHReward(
             _tTotal,
             balanceOf(address(ofAddress)),
             address(this).balance,
@@ -1176,13 +1176,13 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         );
     }
 
-    function claimBNBReward() isHuman nonReentrant public {
+    function claimETHReward() isHuman nonReentrant public {
       
         require(balanceOf(msg.sender) >= 0, 'Error: must own Test to claim reward');
 
-        uint256 reward = calculateBNBReward(msg.sender);
+        uint256 reward = calculateETHReward(msg.sender);
 
-        emit ClaimBNBSuccessfully(msg.sender, reward);
+        emit ClaimETHSuccessfully(msg.sender, reward);
 
         (bool sent,) = address(msg.sender).call{value : reward}("");
         require(sent, 'Error: Cannot withdraw reward');
@@ -1193,7 +1193,7 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         // is the token balance of this contract address over the min number of
         // tokens that we need to initiate a swap + liquidity lock?
         // also, don't get caught in a circular liquidity event.
-        // also, don't swap & liquify if sender is pancake pair.
+        // also, don't swap & liquify if sender is Uniswap pair.
         uint256 contractTokenBalance = balanceOf(address(this));
 
         if (contractTokenBalance >= _maxTxAmount) {
@@ -1205,38 +1205,38 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         if (
             !inSwapAndLiquify &&
         shouldSell &&
-        from != pancakePair &&
+        from != UniswapPair &&
         swapAndLiquifyEnabled &&
-        !(from == address(this) && to == address(pancakePair)) // swap 1 time
+        !(from == address(this) && to == address(UniswapPair)) // swap 1 time
         ) {
             // only sell for minTokenNumberToSell, decouple from _maxTxAmount
             contractTokenBalance = minTokenNumberToSell;
 
             // add liquidity
             // split the contract balance into 3 pieces
-            uint256 pooledBNB = contractTokenBalance.div(2);
-            uint256 piece = contractTokenBalance.sub(pooledBNB).div(2);
+            uint256 pooledETH = contractTokenBalance.div(2);
+            uint256 piece = contractTokenBalance.sub(pooledETH).div(2);
             uint256 otherPiece = contractTokenBalance.sub(piece);
 
-            uint256 tokenAmountToBeSwapped = pooledBNB.add(piece);
+            uint256 tokenAmountToBeSwapped = pooledETH.add(piece);
 
             uint256 initialBalance = address(this).balance;
 
             // now is to lock into staking pool
-            swapTokensForEth(address(pancakeRouter), tokenAmountToBeSwapped);
+            swapTokensForEth(address(UniswapRouter), tokenAmountToBeSwapped);
 
-            // how much BNB did we just swap into?
+            // how much ETH did we just swap into?
 
-            // capture the contract's current BNB balance.
-            // this is so that we can capture exactly the amount of BNB that the
-            // swap creates, and not make the liquidity event include any BNB that
+            // capture the contract's current ETH balance.
+            // this is so that we can capture exactly the amount of ETH that the
+            // swap creates, and not make the liquidity event include any ETH that
             // has been manually sent to the contract
             uint256 deltaBalance = address(this).balance.sub(initialBalance);
 
-            uint256 bnbToBeAddedToLiquidity = deltaBalance.div(3);
+            uint256 ETHToBeAddedToLiquidity = deltaBalance.div(3);
 
-            // add liquidity to pancake
-            addLiquidity(address(pancakeRouter), owner(), otherPiece, bnbToBeAddedToLiquidity);
+            // add liquidity to Uniswap
+            addLiquidity(address(UniswapRouter), owner(), otherPiece, ETHToBeAddedToLiquidity);
 
             emit SwapAndLiquify(piece, deltaBalance, otherPiece);
         }
@@ -1249,21 +1249,21 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
     }
     
     
-    function calculateBNBReward(
+    function calculateETHReward(
         uint256 _tTotal,
         uint256 currentBalance,
-        uint256 currentBNBPool,
+        uint256 currentETHPool,
         uint256 _totalSupply,
         address ofAddress
     ) public pure returns (uint256) {
-        uint256 bnbPool = currentBNBPool;
+        uint256 ETHPool = currentETHPool;
 
         // calculate reward to send
      
         uint256 multiplier = 100;
 
         // now calculate reward
-        uint256 reward = bnbPool.mul(multiplier).mul(currentBalance).div(100).div(_totalSupply);
+        uint256 reward = ETHPool.mul(multiplier).mul(currentBalance).div(100).div(_totalSupply);
 
         return reward;
     }
@@ -1273,17 +1273,17 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         address routerAddress,
         uint256 tokenAmount
     ) public {
-        IPancakeRouter02 pancakeRouter = IPancakeRouter02(routerAddress);
+        IUniswapRouter02 UniswapRouter = IUniswapRouter02(routerAddress);
 
-        // generate the pancake pair path of token -> weth
+        // generate the Uniswap pair path of token -> weth
         address[] memory path = new address[](2);
         path[0] = address(this);
-        path[1] = pancakeRouter.WETH();
+        path[1] = UniswapRouter.WETH();
 
         // make the swap
-        pancakeRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
+        UniswapRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
-            0, // accept any amount of BNB
+            0, // accept any amount of ETH
             path,
             address(this),
             block.timestamp
@@ -1295,16 +1295,16 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         address recipient,
         uint256 ethAmount
     ) public {
-        IPancakeRouter02 pancakeRouter = IPancakeRouter02(routerAddress);
+        IUniswapRouter02 UniswapRouter = IUniswapRouter02(routerAddress);
 
-        // generate the pancake pair path of token -> weth
+        // generate the Uniswap pair path of token -> weth
         address[] memory path = new address[](2);
-        path[0] = pancakeRouter.WETH();
+        path[0] = UniswapRouter.WETH();
         path[1] = address(this);
 
         // make the swap
-        pancakeRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: ethAmount}(
-            0, // accept any amount of BNB
+        UniswapRouter.swapExactETHForTokensSupportingFeeOnTransferTokens{value: ethAmount}(
+            0, // accept any amount of ETH
             path,
             address(recipient),
             block.timestamp + 360
@@ -1317,10 +1317,10 @@ contract Test is Context, IBEP20, Ownable, ReentrancyGuard {
         uint256 tokenAmount,
         uint256 ethAmount
     ) public {
-        //IPancakeRouter02 pancakeRouter = IPancakeRouter02(routerAddress);
+        //IUniswapRouter02 UniswapRouter = IUniswapRouter02(routerAddress);
 
         // add the liquidity
-        pancakeRouter.addLiquidityETH{value : ethAmount}(
+        UniswapRouter.addLiquidityETH{value : ethAmount}(
             address(this),
             tokenAmount,
             0, // slippage is unavoidable
